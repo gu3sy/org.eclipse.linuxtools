@@ -401,4 +401,13 @@ public abstract class TmfAbstractAnalysisModule extends TmfComponent implements 
         return text;
     }
 
+    @Override
+    public List<Class<? extends ITmfTrace>> getValidTraceTypes() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public List<TmfAnalysisRequirement> getAnalysisRequirements() {
+        return new ArrayList<>();
+    }
 }
