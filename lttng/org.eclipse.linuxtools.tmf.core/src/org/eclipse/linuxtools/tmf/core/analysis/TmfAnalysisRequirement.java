@@ -18,8 +18,8 @@ import java.util.HashMap;
  * For these values, a level would be assigned indicating how important is that
  * value based on three possibility: Mandatory, Optional and Informative.
  *
-     * @author Guilliano Molaire
-     * @author Mathieu Rail
+ * @author Guilliano Molaire
+ * @author Mathieu Rail
  * @since 3.0
  */
 public class TmfAnalysisRequirement {
