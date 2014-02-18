@@ -8,9 +8,13 @@
  *
  * Contributors:
  *   Geneviève Bastien - Initial API and implementation
+ *   Mathieu Rail - Update for the analysis requirement API
+ *   Guilliano Molaire - Update for the analysis requirement API
  *******************************************************************************/
 
 package org.eclipse.linuxtools.tmf.core.analysis;
+
+import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -238,4 +242,17 @@ public interface IAnalysisModule extends ITmfComponent {
      */
     void notifyParameterChanged(String name);
 
+    /**
+     * Gets the list of valid trace type that analysis can operate on.
+     *
+     * @return List of the trace type
+     */
+    List<Class<? extends ITmfTrace>> getValidTraceTypes();
+
+    /**
+     * Gets the requirements associated with this analysis.
+     *
+     * @return List of requirement
+     */
+    List<TmfAnalysisRequirement> getAnalysisRequirements();
 }
