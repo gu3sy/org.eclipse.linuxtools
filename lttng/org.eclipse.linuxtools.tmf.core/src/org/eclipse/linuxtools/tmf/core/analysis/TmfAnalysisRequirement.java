@@ -1,3 +1,16 @@
+/*******************************************************************************
+ * Copyright (c) 2014 École Polytechnique de Montréal
+ *
+ * All rights reserved. This program and the accompanying materials are
+ * made available under the terms of the Eclipse Public License v1.0 which
+ * accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Mathieu Rail - Initial API and implementation
+ *   Guilliano Molaire - Initial API and implementation
+ *******************************************************************************/
+
 package org.eclipse.linuxtools.tmf.core.analysis;
 
 import java.util.ArrayList;
@@ -15,8 +28,8 @@ import java.util.HashMap;
  * type could be "event" and all the values that would be added in the
  * requirement object could indicate the possible event handled by the analysis.
  *
- * For these values, a level would be assigned indicating how important is that
- * value based on three possibility: Mandatory, Optional and Informative.
+ * For these values, a level will be assigned indicating how important the value
+ * is based on two possibilities: Mandatory or optional.
  *
  * @author Guilliano Molaire
  * @author Mathieu Rail
@@ -25,22 +38,20 @@ import java.util.HashMap;
 public class TmfAnalysisRequirement {
 
     private final String fType;
-    private final Map<String, TmfValueLevel> fValues = new HashMap<>();
+    private final Map<String, AnalysisRequirementValueLevel> fValues = new HashMap<>();
+    private final List<String> fInformations = new ArrayList<>();
 
     /**
      * The possible level for each value
      *
      * @author Guilliano Molaire
      * @author Mathieu Rail
-     *
      */
-    public enum TmfValueLevel {
+    public enum AnalysisRequirementValueLevel {
         /** The value must be present at runtime (for the analysis) */
         MANDATORY,
         /** The value could be absent and the analysis would still work */
-        OPTIONAL,
-        /** An information about the analysis */
-        INFORMATIVE
+        OPTIONAL
     }
 
     /**
@@ -64,12 +75,9 @@ public class TmfAnalysisRequirement {
      * @param level
      *            A level associated with all the values
      */
-    public TmfAnalysisRequirement(String type, Iterable<String> values, TmfValueLevel level) {
+    public TmfAnalysisRequirement(String type, Iterable<String> values, AnalysisRequirementValueLevel level) {
         fType = type;
-
-        for (String value : values) {
-            fValues.put(value, level);
-        }
+        addValues(values, level);
     }
 
     /**
@@ -77,53 +85,34 @@ public class TmfAnalysisRequirement {
      * same level. If a value was already inside the current requirement, we
      * will override his level only if the new level is of higher priority.
      *
-     * @param req
+     * @param subRequirement
      *            The requirement to be merged
-     * @param level
+     * @param maxSubRequirementValueLevel
      *            The level associated with all the new values or currently
      *            lower priority ones
      */
-    public void merge(TmfAnalysisRequirement req, TmfValueLevel level) {
-        List<String> values = req.getValues();
+    public void merge(TmfAnalysisRequirement subRequirement, AnalysisRequirementValueLevel maxSubRequirementValueLevel) {
+        List<String> values = subRequirement.getValues();
         for (String value : values) {
-            /*
-             * If a value is already in a requirement, we update the level by
-             * the highest option (MANDATORY > OPTIONAL > INFORMATIVE)
-             */
-            if (fValues.containsKey(value)) {
-                TmfValueLevel currentLevel = getValueLevel(value);
-                TmfValueLevel highestLevel = (currentLevel.ordinal() < level.ordinal()) ? currentLevel : level;
-                modifyValueLevel(value, highestLevel);
-            }
-            else {
-                addValue(value, level);
-            }
-        }
-    }
+            AnalysisRequirementValueLevel subRequirementValueLevel = subRequirement.getValueLevel(value);
 
-    /**
-     * Merges a requirement with the current one. If a value was already inside
-     * the current requirement, we will override his level only if the new level
-     * is of higher priority.
-     *
-     * @param req
-     *            The requirement to be merged
-     */
-    public void merge(TmfAnalysisRequirement req) {
-        List<String> values = req.getValues();
-        for (String value : values) {
-            TmfValueLevel reqLevel = req.getValueLevel(value);
-            /*
-             * If a value is already in a requirement, we update the level by
-             * the highest option (MANDATORY > OPTIONAL > INFORMATIVE)
-             */
+            if (subRequirementValueLevel.ordinal() < maxSubRequirementValueLevel.ordinal()) {
+                subRequirementValueLevel = maxSubRequirementValueLevel;
+            }
+
             if (fValues.containsKey(value)) {
-                TmfValueLevel currentLevel = getValueLevel(value);
-                TmfValueLevel highestLevel = (currentLevel.ordinal() < reqLevel.ordinal()) ? currentLevel : reqLevel;
+                /*
+                 * If a value is already in a requirement, we update the level
+                 * by the highest value between the current level in the
+                 * requirement and the level of the value in the
+                 * sub-requirement.
+                 */
+                AnalysisRequirementValueLevel requirementValueLevel = getValueLevel(value);
+                AnalysisRequirementValueLevel highestLevel = (requirementValueLevel.ordinal() < subRequirementValueLevel.ordinal()) ? requirementValueLevel : subRequirementValueLevel;
                 modifyValueLevel(value, highestLevel);
             }
             else {
-                addValue(value, reqLevel);
+                addValue(value, subRequirementValueLevel);
             }
         }
     }
@@ -136,9 +125,8 @@ public class TmfAnalysisRequirement {
      * @param level
      *            The level associated with all the values
      */
-    public void addValues(Iterable<String> values, TmfValueLevel level) {
+    public void addValues(Iterable<String> values, AnalysisRequirementValueLevel level) {
         for (String value : values) {
-            // TODO: do we test if the adding was successful?
             addValue(value, level);
         }
     }
@@ -154,7 +142,7 @@ public class TmfAnalysisRequirement {
      *            The level
      * @return True if the addition was successful
      */
-    public boolean addValue(String value, TmfValueLevel level) {
+    public boolean addValue(String value, AnalysisRequirementValueLevel level) {
         if (!fValues.containsKey(value)) {
             fValues.put(value, level);
             return true;
@@ -171,15 +159,22 @@ public class TmfAnalysisRequirement {
      *            The new level to be associated with the value
      * @return True if the modification was successful
      */
-    public boolean modifyValueLevel(String value, TmfValueLevel level) {
-        // TODO: do we force an addValueLevel before a call to modify?
-        // TODO: can we modify a mandatory level to lower priority?
+    public boolean modifyValueLevel(String value, AnalysisRequirementValueLevel level) {
         if (fValues.containsKey(value)) {
             fValues.put(value, level);
             return true;
         }
-        // TODO: return boolean that tells if the modification was successful?
         return false;
+    }
+
+    /**
+     * Adds an information about the requirement.
+     *
+     * @param information
+     *            The information to be added
+     */
+    public void addInformation(String information) {
+        fInformations.add(information);
     }
 
     /**
@@ -201,14 +196,22 @@ public class TmfAnalysisRequirement {
     }
 
     /**
+     * Gets informations about the requirement.
+     *
+     * @return The list of all the informations
+     */
+    public List<String> getInformations() {
+        return fInformations;
+    }
+
+    /**
      * Gets the level associated with a particular type
      *
      * @param value
      *            The value
-     * @return The level or null is the value does not exist
+     * @return The level or null if the value does not exist
      */
-    public TmfValueLevel getValueLevel(String value) {
-        // TODO: do we want to return null?
+    public AnalysisRequirementValueLevel getValueLevel(String value) {
         return fValues.get(value);
     }
 }

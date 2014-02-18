@@ -7,8 +7,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *   Mathieu Rail
- *   Guilliano Molaire
+ *   Guilliano Molaire - Initial API and implementation
+ *   Mathieu Rail - Initial API and implementation
  *******************************************************************************/
 
 package org.eclipse.linuxtools.tmf.core.tests.analysis;
@@ -17,19 +17,44 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.linuxtools.tmf.core.analysis.TmfAnalysisRequirement;
-import org.eclipse.linuxtools.tmf.core.analysis.TmfAnalysisRequirement.TmfValueLevel;
+import org.eclipse.linuxtools.tmf.core.analysis.TmfAnalysisRequirement.AnalysisRequirementValueLevel;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
 /**
  * Test suite for the {@link TmfAnalysisRequirement} class.
+ *
+ * @author Guilliano Molaire
+ * @author Mathieu Rail
  */
 public class AnalysisRequirementTest {
 
     private static TmfAnalysisRequirement requirement;
     private static TmfAnalysisRequirement subRequirement;
+
+    /**
+     * Test suite for the {@link TmfAnalysisRequirement#addInformations} and the
+     * {@link TmfAnalysisRequirement#getInformations} methods.
+     */
+    @Test
+    public void testAddAndGetInformations() {
+        requirement = new TmfAnalysisRequirement("Requirement");
+
+        requirement.addInformation("This is a test.");
+        requirement.addInformation("This is another test.");
+
+        List<String> informations = requirement.getInformations();
+
+        assertEquals(2, informations.size());
+
+        assertTrue(informations.contains("This is a test."));
+        assertTrue(informations.contains("This is another test."));
+    }
 
     /**
      * Test suite for the {@link TmfAnalysisRequirement#addValues} and the
@@ -39,159 +64,125 @@ public class AnalysisRequirementTest {
     public void testAddValuesToRequirement() {
         requirement = new TmfAnalysisRequirement("Requirement");
 
+        assertEquals(0, requirement.getValues().size());
+
         List<String> values = new ArrayList<>();
         values.add("Value A");
         values.add("Value B");
         values.add("Value C");
         values.add("Value C");
 
-        /* Add values to the requirement with the same level, Value C should only exist once */
-        requirement.addValues(values, TmfValueLevel.MANDATORY);
+        /*
+         * Add values to the requirement with the same level, Value C should
+         * only exist once
+         */
+        requirement.addValues(values, AnalysisRequirementValueLevel.MANDATORY);
         assertEquals(3, requirement.getValues().size());
 
-        //TODO: Test all values to see if they are there and if their level is the same?
+        /* Try to modify the level of a value by adding it a second time */
+        requirement.addValue("Value D", AnalysisRequirementValueLevel.OPTIONAL);
+        requirement.addValue("Value D", AnalysisRequirementValueLevel.MANDATORY);
 
-        requirement.addValue("Value D", TmfValueLevel.OPTIONAL);
-        requirement.addValue("Value D", TmfValueLevel.MANDATORY);
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value D"));
+        assertEquals(4, requirement.getValues().size());
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value D"));
     }
 
     /**
-     * Test suite for the {@link TmfAnalysisRequirement#modifyValueLevel} method.
+     * Test suite for the {@link TmfAnalysisRequirement#getValueLevel} method.
+     */
+    @Test
+    public void testGetValueLevel() {
+        requirement = new TmfAnalysisRequirement("Requirement");
+        requirement.addValue("Value A", AnalysisRequirementValueLevel.OPTIONAL);
+
+        /* Try to get the level of a value */
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value A"));
+
+        /* Try to get the level of a value that doesn't exist */
+        assertNull(requirement.getValueLevel("Value B"));
+    }
+
+    /**
+     * Test suite for the {@link TmfAnalysisRequirement#modifyValueLevel}
+     * method.
      */
     @Test
     public void testModifyValueLevel() {
         requirement = new TmfAnalysisRequirement("Requirement");
+        requirement.addValue("Value A", AnalysisRequirementValueLevel.OPTIONAL);
 
-        requirement.addValue("Value A", TmfValueLevel.OPTIONAL);
-        requirement.modifyValueLevel("Value A", TmfValueLevel.MANDATORY);
+        /* Modify the level of value A */
+        assertTrue(requirement.modifyValueLevel("Value A", AnalysisRequirementValueLevel.MANDATORY));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
 
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
-
-        //TODO: test cases where we modify the level of a value that doesn't exist?
+        /* Try to modify the level of a value that doesn't exist */
+        assertFalse(requirement.modifyValueLevel("Value B", AnalysisRequirementValueLevel.OPTIONAL));
     }
 
     /**
-     * Test suite for the {@link TmfAnalysisRequirement#merge} method
-     * with the parameter value MANDATORY.
+     * Test suite for the {@link TmfAnalysisRequirement#merge} method with the
+     * parameter value MANDATORY.
      */
     @Test
     public void testMergeMandatory() {
         initMergeRequirements();
 
-        requirement.merge(subRequirement, TmfValueLevel.MANDATORY);
+        requirement.merge(subRequirement, AnalysisRequirementValueLevel.MANDATORY);
 
-        assertEquals(requirement.getValues().size(), 12);
+        assertEquals(requirement.getValues().size(), 6);
 
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value B"));
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value C"));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value B"));
 
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value D"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value E"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value F"));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value C"));
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value D"));
 
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value G"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value H"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value I"));
-
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value J"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value K"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value L"));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value E"));
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value F"));
     }
 
     /**
-     * Test suite for the {@link TmfAnalysisRequirement#merge} method
-     * with the parameter value OPTIONAL.
+     * Test suite for the {@link TmfAnalysisRequirement#merge} method with the
+     * parameter value OPTIONAL.
      */
     @Test
     public void testMergeOptional() {
         initMergeRequirements();
 
-        requirement.merge(subRequirement, TmfValueLevel.OPTIONAL);
+        requirement.merge(subRequirement, AnalysisRequirementValueLevel.OPTIONAL);
 
-        assertEquals(requirement.getValues().size(), 12);
+        assertEquals(requirement.getValues().size(), 6);
 
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value B"));
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value C"));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
+        assertEquals(AnalysisRequirementValueLevel.MANDATORY, requirement.getValueLevel("Value B"));
 
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value D"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value E"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value F"));
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value C"));
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value D"));
 
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value G"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value H"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value I"));
-
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value J"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value K"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value L"));
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value E"));
+        assertEquals(AnalysisRequirementValueLevel.OPTIONAL, requirement.getValueLevel("Value F"));
     }
 
     /**
-     * Test suite for the {@link TmfAnalysisRequirement#merge} method
-     * with the parameter value INFORMATIVE.
-     */
-    @Test
-    public void testMergeInformative() {
-        //TODO: Is an informative merge even possible?
-        initMergeRequirements();
-
-        requirement.merge(subRequirement, TmfValueLevel.INFORMATIVE);
-
-        assertEquals(requirement.getValues().size(), 12);
-
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value A"));
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value B"));
-        assertEquals(TmfValueLevel.MANDATORY, requirement.getValueLevel("Value C"));
-
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value D"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value E"));
-        assertEquals(TmfValueLevel.OPTIONAL, requirement.getValueLevel("Value F"));
-
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value G"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value H"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value I"));
-
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value J"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value K"));
-        assertEquals(TmfValueLevel.INFORMATIVE, requirement.getValueLevel("Value L"));
-    }
-
-    /**
-     * Initialize the requirement and subrequirement for the merge tests.
+     * Initialize the requirement and sub-requirement for the merge tests.
      */
     private static void initMergeRequirements() {
         requirement = new TmfAnalysisRequirement("Requirement");
-        requirement.addValue("Value A", TmfValueLevel.MANDATORY);
-        requirement.addValue("Value B", TmfValueLevel.MANDATORY);
-        requirement.addValue("Value C", TmfValueLevel.MANDATORY);
+        requirement.addValue("Value A", AnalysisRequirementValueLevel.MANDATORY);
+        requirement.addValue("Value B", AnalysisRequirementValueLevel.MANDATORY);
 
-        requirement.addValue("Value D", TmfValueLevel.OPTIONAL);
-        requirement.addValue("Value E", TmfValueLevel.OPTIONAL);
-        requirement.addValue("Value F", TmfValueLevel.OPTIONAL);
-
-        requirement.addValue("Value G", TmfValueLevel.INFORMATIVE);
-        requirement.addValue("Value H", TmfValueLevel.INFORMATIVE);
-        requirement.addValue("Value I", TmfValueLevel.INFORMATIVE);
+        requirement.addValue("Value C", AnalysisRequirementValueLevel.OPTIONAL);
+        requirement.addValue("Value D", AnalysisRequirementValueLevel.OPTIONAL);
 
         /* This sub-requirement will be merged into requirement */
         subRequirement = new TmfAnalysisRequirement("Sub-requirement");
-        subRequirement.addValue("Value A", TmfValueLevel.MANDATORY);
-        subRequirement.addValue("Value B", TmfValueLevel.OPTIONAL);
-        subRequirement.addValue("Value C", TmfValueLevel.INFORMATIVE);
+        subRequirement.addValue("Value A", AnalysisRequirementValueLevel.MANDATORY);
+        subRequirement.addValue("Value B", AnalysisRequirementValueLevel.OPTIONAL);
 
-        subRequirement.addValue("Value D", TmfValueLevel.MANDATORY);
-        subRequirement.addValue("Value E", TmfValueLevel.OPTIONAL);
-        subRequirement.addValue("Value F", TmfValueLevel.INFORMATIVE);
+        subRequirement.addValue("Value C", AnalysisRequirementValueLevel.MANDATORY);
+        subRequirement.addValue("Value D", AnalysisRequirementValueLevel.OPTIONAL);
 
-        subRequirement.addValue("Value G", TmfValueLevel.MANDATORY);
-        subRequirement.addValue("Value H", TmfValueLevel.OPTIONAL);
-        subRequirement.addValue("Value I", TmfValueLevel.INFORMATIVE);
-
-        subRequirement.addValue("Value J", TmfValueLevel.MANDATORY);
-        subRequirement.addValue("Value K", TmfValueLevel.OPTIONAL);
-        subRequirement.addValue("Value L", TmfValueLevel.INFORMATIVE);
+        subRequirement.addValue("Value E", AnalysisRequirementValueLevel.MANDATORY);
+        subRequirement.addValue("Value F", AnalysisRequirementValueLevel.OPTIONAL);
     }
 }
